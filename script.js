@@ -9,6 +9,8 @@ const LEAGUE_MAPPINGS = {
   "shadowelimination": "887146"
 };
 
+const ITEMS_PER_PAGE = 50;
+
 // 1. Get league key from URL (?league=bhaktapurian), default to "bhaktapurian"
 const urlParams = new URLSearchParams(window.location.search);
 const LEAGUE_KEY = urlParams.get('league') || DEFAULT_LEAGUE_KEY;
@@ -18,6 +20,14 @@ const LEAGUE_ID = LEAGUE_MAPPINGS[LEAGUE_KEY] || (/\d+/.test(LEAGUE_KEY) ? LEAGU
 
 // Global state variables
 let currentActiveGameweek = 1;
+
+// Data arrays for pagination
+let currentGwData = [];
+let overallData = [];
+
+let currentGwPage = 1;
+let overallPage = 1;
+
 let currentHistoryData = []; // Cached array for sorting
 let currentSortColumn = 'net_points'; // Default sort
 let isAscending = false; // Default sort direction (descending for highest points)
@@ -97,39 +107,18 @@ async function fetchLiveData() {
     document.getElementById('league-subtitle').innerText = `Live Status • ${gwDisplayTitle}`;
     document.getElementById('current-gw-badge').innerText = gwNumber > 0 ? `GW ${gwNumber}` : "GW 1";
 
-    // Populate Current GW Table
     const standings = data.standings || [];
     if (standings.length > 0) {
-      const currentGwSorted = [...standings].sort((a, b) => (b.event_total || 0) - (a.event_total || 0));
-      const currentGwTbody = document.getElementById('current-gw-tbody');
-      currentGwTbody.innerHTML = currentGwSorted.map((item, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td><strong>#${index + 1}</strong></td>
-          <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
-          <td><strong>${item.event_total || 0}</strong></td>
-          <td>${item.total_points || item.total || 0}</td>
-        </tr>
-      `).join('');
+      // Current GW sorted by GW Points
+      currentGwData = [...standings].sort((a, b) => (b.event_total || 0) - (a.event_total || 0));
+      // Overall sorted as provided
+      overallData = [...standings];
 
-      // Populate Overall Standings Table
-      const overallTbody = document.getElementById('overall-tbody');
-      overallTbody.innerHTML = standings.map((item, index) => {
-        let rankChangeHtml = '<span class="rank-same">-</span>';
-        if (item.rank_change > 0) rankChangeHtml = `<span class="rank-up">▲ ${item.rank_change}</span>`;
-        if (item.rank_change < 0) rankChangeHtml = `<span class="rank-down">▼ ${Math.abs(item.rank_change)}</span>`;
+      currentGwPage = 1;
+      overallPage = 1;
 
-        return `
-          <tr>
-            <td>${index + 1}</td>
-            <td><strong>#${item.overall_rank || item.rank || (index + 1)}</strong></td>
-            <td>${rankChangeHtml}</td>
-            <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
-            <td>${item.event_total || 0}</td>
-            <td><strong>${item.total_points || item.total || 0}</strong></td>
-          </tr>
-        `;
-      }).join('');
+      renderCurrentGwPage();
+      renderOverallPage();
     } else {
       document.getElementById('current-gw-tbody').innerHTML = `<tr><td colspan="5" class="loader">No live standings available yet.</td></tr>`;
       document.getElementById('overall-tbody').innerHTML = `<tr><td colspan="6" class="loader">No overall standings available yet.</td></tr>`;
@@ -146,6 +135,112 @@ async function fetchLiveData() {
     
     populateGwSelector(38);
   }
+}
+
+// Render Paginated Current Gameweek Table
+function renderCurrentGwPage() {
+  const tbody = document.getElementById('current-gw-tbody');
+  const totalItems = currentGwData.length;
+  const startIdx = (currentGwPage - 1) * ITEMS_PER_PAGE;
+  const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, totalItems);
+  const pageItems = currentGwData.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map((item, index) => {
+    const serialNum = startIdx + index + 1;
+    return `
+      <tr>
+        <td>${serialNum}</td>
+        <td><strong>#${serialNum}</strong></td>
+        <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
+        <td><strong>${item.event_total || 0}</strong></td>
+        <td>${item.total_points || item.total || 0}</td>
+      </tr>
+    `;
+  }).join('');
+
+  renderPaginationControls('current-gw', currentGwPage, totalItems, (newPage) => {
+    currentGwPage = newPage;
+    renderCurrentGwPage();
+  });
+}
+
+// Render Paginated Overall Standings Table
+function renderOverallPage() {
+  const tbody = document.getElementById('overall-tbody');
+  const totalItems = overallData.length;
+  const startIdx = (overallPage - 1) * ITEMS_PER_PAGE;
+  const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, totalItems);
+  const pageItems = overallData.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map((item, index) => {
+    const serialNum = startIdx + index + 1;
+    let rankChangeHtml = '<span class="rank-same">-</span>';
+    if (item.rank_change > 0) rankChangeHtml = `<span class="rank-up">▲ ${item.rank_change}</span>`;
+    if (item.rank_change < 0) rankChangeHtml = `<span class="rank-down">▼ ${Math.abs(item.rank_change)}</span>`;
+
+    return `
+      <tr>
+        <td>${serialNum}</td>
+        <td><strong>#${item.overall_rank || item.rank || serialNum}</strong></td>
+        <td>${rankChangeHtml}</td>
+        <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
+        <td>${item.event_total || 0}</td>
+        <td><strong>${item.total_points || item.total || 0}</strong></td>
+      </tr>
+    `;
+  }).join('');
+
+  renderPaginationControls('overall', overallPage, totalItems, (newPage) => {
+    overallPage = newPage;
+    renderOverallPage();
+  });
+}
+
+// Reusable Pagination Controller
+function renderPaginationControls(prefix, currentPage, totalItems, onPageChange) {
+  const container = document.getElementById(`${prefix}-pagination`);
+  const infoSpan = document.getElementById(`${prefix}-page-info`);
+  const btnGroup = document.getElementById(`${prefix}-page-btns`);
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+  if (totalPages <= 1) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'flex';
+
+  const startIdx = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endIdx = Math.min(currentPage * ITEMS_PER_PAGE, totalItems);
+  infoSpan.textContent = `Showing ${startIdx}-${endIdx} of ${totalItems}`;
+
+  btnGroup.innerHTML = '';
+
+  // Prev Button
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'pg-btn';
+  prevBtn.textContent = '« Prev';
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = () => onPageChange(currentPage - 1);
+  btnGroup.appendChild(prevBtn);
+
+  // Page Numbers
+  for (let i = 1; i <= totalPages; i++) {
+    const pBtn = document.createElement('button');
+    pBtn.className = `pg-btn ${i === currentPage ? 'active' : ''}`;
+    pBtn.textContent = i;
+    pBtn.onclick = () => onPageChange(i);
+    btnGroup.appendChild(pBtn);
+  }
+
+  // Next Button
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'pg-btn';
+  nextBtn.textContent = 'Next »';
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = () => onPageChange(currentPage + 1);
+  btnGroup.appendChild(nextBtn);
 }
 
 // Populate Gameweek Dropdown Selector
