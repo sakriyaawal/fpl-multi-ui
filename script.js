@@ -1,7 +1,10 @@
-// Configuration
+// Worker base configuration
 const WORKER_BASE_URL = "https://fpl-multi-worker.sakriyaawal.workers.dev";
-const LEAGUE_ID = "164381";
-const LEAGUE_KEY = "bhaktapurian";
+const DEFAULT_LEAGUE_KEY = "bhaktapurian";
+
+// Extract 'league' from URL parameter (?league=something), fallback to 'bhaktapurian'
+const urlParams = new URLSearchParams(window.location.search);
+const LEAGUE_KEY = urlParams.get('league') || DEFAULT_LEAGUE_KEY;
 
 // Tab Switching Listener
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -26,14 +29,20 @@ document.getElementById('gw-select').addEventListener('change', (e) => {
   fetchGameweekHistory(e.target.value);
 });
 
-// 1. Fetch Live Data from Cloudflare Worker
+// 1. Fetch Live Data & Standings dynamically for the active league
 async function fetchLiveData() {
   try {
-    const response = await fetch(`${WORKER_BASE_URL}/api/live/standings?league_id=${LEAGUE_ID}`);
+    // Fetch live standings passing the current LEAGUE_KEY
+    const response = await fetch(`${WORKER_BASE_URL}/api/live/standings?league_key=${encodeURIComponent(LEAGUE_KEY)}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data for league: ${LEAGUE_KEY}`);
+    }
+
     const data = await response.json();
 
     // Update Header Text & Badge
-    document.getElementById('league-title').innerText = data.league_name || "FPL Mini-League";
+    document.getElementById('league-title').innerText = data.league_name || `FPL League (${LEAGUE_KEY})`;
     document.getElementById('league-subtitle').innerText = `Live Status • ${data.current_gameweek_name}`;
     document.getElementById('current-gw-badge').innerText = data.current_gameweek_name;
 
@@ -72,6 +81,10 @@ async function fetchLiveData() {
 
   } catch (err) {
     console.error("Error fetching live data:", err);
+    document.getElementById('league-title').innerText = "League Not Found";
+    document.getElementById('league-subtitle').innerText = `Could not load data for "${LEAGUE_KEY}"`;
+    document.getElementById('current-gw-tbody').innerHTML = `<tr><td colspan="4" class="loader">Failed to load league data.</td></tr>`;
+    document.getElementById('overall-tbody').innerHTML = `<tr><td colspan="5" class="loader">Failed to load overall standings.</td></tr>`;
   }
 }
 
@@ -90,13 +103,13 @@ function populateGwSelector(currentGw) {
   }
 }
 
-// 2. Fetch Gameweek Historical Data from Worker KV Endpoint
+// 2. Fetch Gameweek Historical Data from Worker KV
 async function fetchGameweekHistory(gw) {
   const tbody = document.getElementById('history-tbody');
   tbody.innerHTML = `<tr><td colspan="6" class="loader">Loading GW ${gw} history...</td></tr>`;
 
   try {
-    const response = await fetch(`${WORKER_BASE_URL}/api/kv/gw?league_key=${LEAGUE_KEY}&gw=${gw}`);
+    const response = await fetch(`${WORKER_BASE_URL}/api/kv/gw?league_key=${encodeURIComponent(LEAGUE_KEY)}&gw=${gw}`);
     if (!response.ok) {
       tbody.innerHTML = `<tr><td colspan="6" class="loader">No stored historical data found for Gameweek ${gw}.</td></tr>`;
       return;
@@ -118,15 +131,15 @@ async function fetchGameweekHistory(gw) {
   }
 }
 
-// 3. Fetch Gameweek Winners from Worker KV Endpoint
+// 3. Fetch Gameweek Winners from Worker KV
 async function fetchWinners() {
   const tbody = document.getElementById('winners-tbody');
   tbody.innerHTML = `<tr><td colspan="3" class="loader">Loading winners from KV...</td></tr>`;
 
   try {
-    const response = await fetch(`${WORKER_BASE_URL}/api/kv/winners?league_key=${LEAGUE_KEY}`);
+    const response = await fetch(`${WORKER_BASE_URL}/api/kv/winners?league_key=${encodeURIComponent(LEAGUE_KEY)}`);
     if (!response.ok) {
-      tbody.innerHTML = `<tr><td colspan="3" class="loader">No winners data found in KV.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="3" class="loader">No winners data found in KV for this league.</td></tr>`;
       return;
     }
 
