@@ -185,6 +185,78 @@ tr:hover {
   color: #6b778c;
 }
 
+/* Sortable Headers */
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+th.sortable:hover {
+  background-color: #f0f0f0;
+  color: var(--fpl-purple);
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  margin-left: 4px;
+  color: var(--fpl-pink);
+  font-weight: bold;
+}
+
+/* Pagination Controls */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.pagination-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pg-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  color: var(--text-main);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pg-btn:hover:not(:disabled) {
+  background-color: var(--fpl-purple);
+  color: white;
+  border-color: var(--fpl-purple);
+}
+
+.pg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pg-btn.active {
+  background-color: var(--fpl-purple);
+  color: var(--fpl-green);
+  border-color: var(--fpl-purple);
+}
+
 /* Loader */
 .loader {
   text-align: center;
