@@ -42,7 +42,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     e.target.classList.add('active');
 
     if (tabId === 'gw-history' && !document.getElementById('history-tbody').dataset.loaded) {
-      const selectedGw = document.getElementById('gw-select').value || currentActiveGameweek;
+      const selectedGw = document.getElementById('gw-select')?.value || currentActiveGameweek;
       fetchGameweekHistory(selectedGw);
     }
 
@@ -52,7 +52,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
   });
 });
 
-document.getElementById('gw-select').addEventListener('change', (e) => {
+document.getElementById('gw-select')?.addEventListener('change', (e) => {
   fetchGameweekHistory(e.target.value);
 });
 
@@ -81,7 +81,9 @@ function updateSortHeaderIcons(activeHeader) {
 // 1. Fetch Current Gameweek Standings (Per Page)
 async function fetchCurrentGwStandings(page = 1) {
   const tbody = document.getElementById('current-gw-tbody');
-  tbody.innerHTML = `<tr><td colspan="5" class="loader">Loading Current GW page ${page}...</td></tr>`;
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="5" class="loader">Loading Current GW page ${page}...</td></tr>`;
+  }
 
   try {
     const response = await fetch(`${WORKER_BASE_URL}/api/live/standings?league_id=${LEAGUE_ID}&league_key=${encodeURIComponent(LEAGUE_KEY)}&page=${page}`);
@@ -89,15 +91,18 @@ async function fetchCurrentGwStandings(page = 1) {
 
     const data = await response.json();
 
-    let gwNumber = data.current_gameweek_id || data.current_event || 0;
-    let gwDisplayTitle = data.current_gameweek_name || (gwNumber > 0 ? `Gameweek ${gwNumber}` : "Pre-Season / GW 1");
-    currentActiveGameweek = gwNumber > 0 ? gwNumber : 1;
+    // Directly use the accurate gameweek ID returned from bootstrap-static
+    currentActiveGameweek = data.current_gameweek_id || 1;
 
-    document.getElementById('league-title').innerText = data.league_name || `FPL League (${LEAGUE_KEY})`;
-    document.getElementById('league-subtitle').innerText = `Live Status • ${gwDisplayTitle}`;
-    document.getElementById('current-gw-badge').innerText = gwNumber > 0 ? `GW ${gwNumber}` : "GW 1";
+    const leagueTitleEl = document.getElementById('league-title');
+    const leagueSubtitleEl = document.getElementById('league-subtitle');
+    const currentGwBadgeEl = document.getElementById('current-gw-badge');
 
-    // Populate dropdown selector once active gameweek is resolved
+    if (leagueTitleEl) leagueTitleEl.innerText = data.league_name || `FPL League (${LEAGUE_KEY})`;
+    if (leagueSubtitleEl) leagueSubtitleEl.innerText = `Live Status • Gameweek ${currentActiveGameweek}`;
+    if (currentGwBadgeEl) currentGwBadgeEl.innerText = `GW ${currentActiveGameweek}`;
+
+    // Initialize selector with accurate Gameweek
     if (!gwSelectorInitialized) {
       populateGwSelector(currentActiveGameweek);
       gwSelectorInitialized = true;
@@ -107,39 +112,43 @@ async function fetchCurrentGwStandings(page = 1) {
     currentGwHasNext = data.has_next === true || data.standings_has_next === true;
     currentGwPage = page;
 
-    if (standings.length > 0) {
-      const sortedStandings = [...standings].sort((a, b) => (b.event_total || 0) - (a.event_total || 0));
+    if (tbody) {
+      if (standings.length > 0) {
+        const sortedStandings = [...standings].sort((a, b) => (b.event_total || 0) - (a.event_total || 0));
 
-      tbody.innerHTML = sortedStandings.map((item, index) => {
-        const serialNum = (page - 1) * ITEMS_PER_PAGE + index + 1;
-        return `
-          <tr>
-            <td>${serialNum}</td>
-            <td><strong>#${serialNum}</strong></td>
-            <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
-            <td><strong>${item.event_total || 0}</strong></td>
-            <td>${item.total_points || item.total || 0}</td>
-          </tr>
-        `;
-      }).join('');
+        tbody.innerHTML = sortedStandings.map((item, index) => {
+          const serialNum = (page - 1) * ITEMS_PER_PAGE + index + 1;
+          return `
+            <tr>
+              <td>${serialNum}</td>
+              <td><strong>#${serialNum}</strong></td>
+              <td><strong>${item.team_name || item.entry_name || 'N/A'}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name || ''}</small></td>
+              <td><strong>${item.event_total || 0}</strong></td>
+              <td>${item.total_points || item.total || 0}</td>
+            </tr>
+          `;
+        }).join('');
 
-      renderApiPaginationControls('current-gw', currentGwPage, currentGwHasNext, (targetPage) => {
-        fetchCurrentGwStandings(targetPage);
-      });
-    } else {
-      tbody.innerHTML = `<tr><td colspan="5" class="loader">No standings found for page ${page}.</td></tr>`;
+        renderApiPaginationControls('current-gw', currentGwPage, currentGwHasNext, (targetPage) => {
+          fetchCurrentGwStandings(targetPage);
+        });
+      } else {
+        tbody.innerHTML = `<tr><td colspan="5" class="loader">No standings found for page ${page}.</td></tr>`;
+      }
     }
 
   } catch (err) {
     console.error("Error fetching Current GW standings:", err);
-    tbody.innerHTML = `<tr><td colspan="5" class="loader">Unable to load standings.</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loader">Unable to load standings.</td></tr>`;
   }
 }
 
 // 2. Fetch Overall League Standings (Per Page)
 async function fetchOverallStandings(page = 1) {
   const tbody = document.getElementById('overall-tbody');
-  tbody.innerHTML = `<tr><td colspan="6" class="loader">Loading Overall Standings page ${page}...</td></tr>`;
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="6" class="loader">Loading Overall Standings page ${page}...</td></tr>`;
+  }
 
   try {
     const response = await fetch(`${WORKER_BASE_URL}/api/live/standings?league_id=${LEAGUE_ID}&league_key=${encodeURIComponent(LEAGUE_KEY)}&page=${page}`);
@@ -151,35 +160,37 @@ async function fetchOverallStandings(page = 1) {
     overallHasNext = data.has_next === true || data.standings_has_next === true;
     overallPage = page;
 
-    if (standings.length > 0) {
-      tbody.innerHTML = standings.map((item, index) => {
-        const serialNum = (page - 1) * ITEMS_PER_PAGE + index + 1;
-        let rankChangeHtml = '<span class="rank-same">-</span>';
-        if (item.rank_change > 0) rankChangeHtml = `<span class="rank-up">▲ ${item.rank_change}</span>`;
-        if (item.rank_change < 0) rankChangeHtml = `<span class="rank-down">▼ ${Math.abs(item.rank_change)}</span>`;
+    if (tbody) {
+      if (standings.length > 0) {
+        tbody.innerHTML = standings.map((item, index) => {
+          const serialNum = (page - 1) * ITEMS_PER_PAGE + index + 1;
+          let rankChangeHtml = '<span class="rank-same">-</span>';
+          if (item.rank_change > 0) rankChangeHtml = `<span class="rank-up">▲ ${item.rank_change}</span>`;
+          if (item.rank_change < 0) rankChangeHtml = `<span class="rank-down">▼ ${Math.abs(item.rank_change)}</span>`;
 
-        return `
-          <tr>
-            <td>${serialNum}</td>
-            <td><strong>#${item.overall_rank || item.rank || serialNum}</strong></td>
-            <td>${rankChangeHtml}</td>
-            <td><strong>${item.team_name || item.entry_name}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name}</small></td>
-            <td>${item.event_total || 0}</td>
-            <td><strong>${item.total_points || item.total || 0}</strong></td>
-          </tr>
-        `;
-      }).join('');
+          return `
+            <tr>
+              <td>${serialNum}</td>
+              <td><strong>#${item.overall_rank || item.rank || serialNum}</strong></td>
+              <td>${rankChangeHtml}</td>
+              <td><strong>${item.team_name || item.entry_name || 'N/A'}</strong><br><small style="color:var(--text-muted);">${item.manager_name || item.player_name || ''}</small></td>
+              <td>${item.event_total || 0}</td>
+              <td><strong>${item.total_points || item.total || 0}</strong></td>
+            </tr>
+          `;
+        }).join('');
 
-      renderApiPaginationControls('overall', overallPage, overallHasNext, (targetPage) => {
-        fetchOverallStandings(targetPage);
-      });
-    } else {
-      tbody.innerHTML = `<tr><td colspan="6" class="loader">No standings found for page ${page}.</td></tr>`;
+        renderApiPaginationControls('overall', overallPage, overallHasNext, (targetPage) => {
+          fetchOverallStandings(targetPage);
+        });
+      } else {
+        tbody.innerHTML = `<tr><td colspan="6" class="loader">No standings found for page ${page}.</td></tr>`;
+      }
     }
 
   } catch (err) {
     console.error("Error fetching overall standings:", err);
-    tbody.innerHTML = `<tr><td colspan="6" class="loader">Unable to load overall standings.</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="loader">Unable to load overall standings.</td></tr>`;
   }
 }
 
@@ -249,21 +260,23 @@ function populateGwSelector(maxGw) {
 // Fetch Gameweek Historical Data from Worker KV
 async function fetchGameweekHistory(gw) {
   const tbody = document.getElementById('history-tbody');
-  tbody.innerHTML = `<tr><td colspan="7" class="loader">Loading GW ${gw} history...</td></tr>`;
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="7" class="loader">Loading GW ${gw} history...</td></tr>`;
+  }
 
   try {
     const response = await fetch(`${WORKER_BASE_URL}/api/kv/gw?league_key=${encodeURIComponent(LEAGUE_KEY)}&league_id=${LEAGUE_ID}&gw=${gw}`);
     if (!response.ok) {
-      tbody.innerHTML = `<tr><td colspan="7" class="loader">No stored historical data found for Gameweek ${gw}.</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loader">No stored historical data found for Gameweek ${gw}.</td></tr>`;
       return;
     }
 
     const data = await response.json();
-    tbody.dataset.loaded = "true";
+    if (tbody) tbody.dataset.loaded = "true";
 
     const managers = data.managers || data.standings || data.data || [];
     if (!Array.isArray(managers) || managers.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="loader">No data recorded for Gameweek ${gw}.</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loader">No data recorded for Gameweek ${gw}.</td></tr>`;
       return;
     }
 
@@ -286,12 +299,13 @@ async function fetchGameweekHistory(gw) {
     renderSortedHistoryTable();
   } catch (err) {
     console.error("Error fetching GW history:", err);
-    tbody.innerHTML = `<tr><td colspan="7" class="loader">Failed to load gameweek history.</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="loader">Failed to load gameweek history.</td></tr>`;
   }
 }
 
 function renderSortedHistoryTable() {
   const tbody = document.getElementById('history-tbody');
+  if (!tbody) return;
 
   currentHistoryData.sort((a, b) => {
     let valA = a[currentSortColumn];
@@ -320,48 +334,52 @@ function renderSortedHistoryTable() {
 // Fetch Gameweek Winners from Worker KV
 async function fetchWinners() {
   const tbody = document.getElementById('winners-tbody');
-  tbody.innerHTML = `<tr><td colspan="4" class="loader">Loading winners from KV...</td></tr>`;
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="4" class="loader">Loading winners from KV...</td></tr>`;
+  }
 
   try {
     const response = await fetch(`${WORKER_BASE_URL}/api/kv/winners?league_key=${encodeURIComponent(LEAGUE_KEY)}&league_id=${LEAGUE_ID}`);
     if (!response.ok) {
-      tbody.innerHTML = `<tr><td colspan="4" class="loader">No winners data found in KV for this league.</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="loader">No winners data found in KV for this league.</td></tr>`;
       return;
     }
 
     const data = await response.json();
-    tbody.dataset.loaded = "true";
+    if (tbody) tbody.dataset.loaded = "true";
 
     let winnersList = Array.isArray(data) ? data : (data.winners ? (Array.isArray(data.winners) ? data.winners : Object.values(data.winners)) : Object.values(data));
 
     if (winnersList.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" class="loader">No winners recorded yet.</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="loader">No winners recorded yet.</td></tr>`;
       return;
     }
 
-    tbody.innerHTML = winnersList.map((gwObj, index) => {
-      const gwNum = gwObj.gameweek || gwObj.gw || '-';
-      const pts = gwObj.net_points || gwObj.points || '-';
-      
-      let winnerNames = "N/A";
-      if (Array.isArray(gwObj.winners)) {
-        winnerNames = gwObj.winners.map(w => `<strong>${w.team_name || w.entry_name}</strong> (${w.manager_name || w.player_name})`).join(', ');
-      } else if (typeof gwObj.winner === 'string') {
-        winnerNames = gwObj.winner;
-      }
+    if (tbody) {
+      tbody.innerHTML = winnersList.map((gwObj, index) => {
+        const gwNum = gwObj.gameweek || gwObj.gw || '-';
+        const pts = gwObj.net_points || gwObj.points || '-';
+        
+        let winnerNames = "N/A";
+        if (Array.isArray(gwObj.winners)) {
+          winnerNames = gwObj.winners.map(w => `<strong>${w.team_name || w.entry_name}</strong> (${w.manager_name || w.player_name})`).join(', ');
+        } else if (typeof gwObj.winner === 'string') {
+          winnerNames = gwObj.winner;
+        }
 
-      return `
-        <tr>
-          <td>${index + 1}</td>
-          <td><strong>Gameweek ${gwNum}</strong></td>
-          <td><strong>${pts} pts</strong></td>
-          <td>${winnerNames}</td>
-        </tr>
-      `;
-    }).join('');
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td><strong>Gameweek ${gwNum}</strong></td>
+            <td><strong>${pts} pts</strong></td>
+            <td>${winnerNames}</td>
+          </tr>
+        `;
+      }).join('');
+    }
   } catch (err) {
     console.error("Error fetching winners:", err);
-    tbody.innerHTML = `<tr><td colspan="4" class="loader">Failed to load winners data.</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="loader">Failed to load winners data.</td></tr>`;
   }
 }
 
