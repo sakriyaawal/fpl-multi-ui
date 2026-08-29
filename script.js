@@ -17,6 +17,7 @@ const LEAGUE_ID = LEAGUE_MAPPINGS[LEAGUE_KEY] || (/\d+/.test(LEAGUE_KEY) ? LEAGU
 
 // Global state variables
 let currentActiveGameweek = 1;
+let gwSelectorInitialized = false;
 
 // Standings & Page States
 let currentGwPage = 1;
@@ -96,12 +97,17 @@ async function fetchCurrentGwStandings(page = 1) {
     document.getElementById('league-subtitle').innerText = `Live Status • ${gwDisplayTitle}`;
     document.getElementById('current-gw-badge').innerText = gwNumber > 0 ? `GW ${gwNumber}` : "GW 1";
 
+    // Populate dropdown selector once active gameweek is resolved
+    if (!gwSelectorInitialized) {
+      populateGwSelector(currentActiveGameweek);
+      gwSelectorInitialized = true;
+    }
+
     const standings = data.standings || [];
     currentGwHasNext = data.has_next === true || data.standings_has_next === true;
     currentGwPage = page;
 
     if (standings.length > 0) {
-      // Sort by event_total for current GW performance view
       const sortedStandings = [...standings].sort((a, b) => (b.event_total || 0) - (a.event_total || 0));
 
       tbody.innerHTML = sortedStandings.map((item, index) => {
@@ -185,7 +191,6 @@ function renderApiPaginationControls(prefix, currentPage, hasNext, onPageFetch) 
 
   if (!container || !infoSpan || !btnGroup) return;
 
-  // Don't display pagination controls if it's page 1 and there is no next page
   if (currentPage === 1 && !hasNext) {
     container.style.display = 'none';
     return;
@@ -195,7 +200,6 @@ function renderApiPaginationControls(prefix, currentPage, hasNext, onPageFetch) 
   infoSpan.textContent = `Page ${currentPage}`;
   btnGroup.innerHTML = '';
 
-  // Prev Button
   const prevBtn = document.createElement('button');
   prevBtn.className = 'pg-btn';
   prevBtn.textContent = '« Prev Page';
@@ -206,13 +210,11 @@ function renderApiPaginationControls(prefix, currentPage, hasNext, onPageFetch) 
   };
   btnGroup.appendChild(prevBtn);
 
-  // Current Page Indicator Button
   const currBtn = document.createElement('button');
   currBtn.className = 'pg-btn active';
   currBtn.textContent = currentPage;
   btnGroup.appendChild(currBtn);
 
-  // Next Button (enabled only if FPL API returned has_next === true)
   const nextBtn = document.createElement('button');
   nextBtn.className = 'pg-btn';
   nextBtn.textContent = 'Next Page »';
@@ -227,14 +229,20 @@ function renderApiPaginationControls(prefix, currentPage, hasNext, onPageFetch) 
 // Populate Gameweek Dropdown Selector
 function populateGwSelector(maxGw) {
   const select = document.getElementById('gw-select');
+  if (!select) return;
+
   select.innerHTML = '';
   const limit = Math.max(maxGw, 1);
+
   for (let i = limit; i >= 1; i--) {
     const option = document.createElement('option');
     option.value = i;
     option.textContent = `Gameweek ${i}`;
+    if (i === limit) option.selected = true;
     select.appendChild(option);
   }
+
+  // Pre-fetch historical data for the latest active gameweek
   fetchGameweekHistory(limit);
 }
 
