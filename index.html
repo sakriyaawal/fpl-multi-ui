@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FPL League Dashboard</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Styling for sortable headers */
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.2s;
+    }
+    th.sortable:hover {
+      background-color: #eaeaea;
+    }
+    .sort-icon {
+      font-size: 0.75rem;
+      margin-left: 4px;
+      color: var(--fpl-purple);
+    }
+  </style>
 </head>
 <body>
 
@@ -75,7 +91,7 @@
       </div>
     </section>
 
-    <!-- 3. Gameweek History View -->
+    <!-- 3. Gameweek History View (Sortable Headers Added) -->
     <section id="gw-history" class="view">
       <div class="view-header">
         <h2>Gameweek Historical Data</h2>
@@ -91,12 +107,12 @@
           <thead>
             <tr>
               <th>S.N.</th>
-              <th>Team & Manager</th>
-              <th>Gross Points</th>
-              <th>Transfer Cost</th>
-              <th>Net Points</th>
-              <th>Chip Used</th>
-              <th>Bench Points</th>
+              <th class="sortable" data-sort="team_name">Team & Manager <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="points">Gross Points <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="transfer_cost">Transfer Cost <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="net_points">Net Points <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="chip">Chip Used <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="points_on_bench">Bench Points <span class="sort-icon"></span></th>
             </tr>
           </thead>
           <tbody id="history-tbody">
