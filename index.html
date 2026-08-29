@@ -3,83 +3,139 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FPL Dashboard</title>
+  <title>FPL League Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- Header -->
   <header>
-    <h1>Fantasy Premier League Dashboard</h1>
-    <p>Live League Standings & Manager Analytics</p>
+    <h1 id="league-title">FPL Mini-League</h1>
+    <p id="league-subtitle">Loading league data...</p>
   </header>
 
   <!-- Navigation Bar -->
   <nav>
     <div class="nav-container">
-      <button class="nav-btn active" data-view="standings">Standings</button>
-      <button class="nav-btn" data-view="managers">Manager Search</button>
-      <button class="nav-btn" data-view="stats">Stats</button>
+      <button class="nav-btn active" data-tab="current-gw">Current Gameweek</button>
+      <button class="nav-btn" data-tab="overall-standings">Overall Standings</button>
+      <button class="nav-btn" data-tab="gw-history">Gameweek History</button>
+      <button class="nav-btn" data-tab="gw-winners">Gameweek Winners</button>
     </div>
   </nav>
 
-  <!-- Main Content -->
+  <!-- Main Content Area -->
   <main>
-    <!-- League Standings View -->
-    <section id="standings" class="view active">
+
+    <!-- 1. Current Gameweek View -->
+    <section id="current-gw" class="view active">
       <div class="view-header">
-        <h2>League Standings</h2>
-        <div class="controls">
-          <select id="league-select">
-            <option value="">Select a League...</option>
-          </select>
-          <span class="badge" id="gameweek-badge">GW --</span>
-        </div>
+        <h2>Current Gameweek Performance</h2>
+        <span class="badge" id="current-gw-badge">GW --</span>
       </div>
-
-      <div id="standings-loader" class="loader">Select a league to view standings</div>
-
-      <div class="table-responsive" id="standings-table-container" style="display: none;">
+      <div class="table-responsive">
         <table>
           <thead>
             <tr>
-              <th class="sortable" data-sort="rank">Rank <span class="sort-icon"></span></th>
-              <th class="sortable" data-sort="player_name">Manager <span class="sort-icon"></span></th>
-              <th class="sortable" data-sort="entry_name">Team <span class="sort-icon"></span></th>
-              <th class="sortable" data-sort="event_total">GW Pts <span class="sort-icon"></span></th>
-              <th class="sortable" data-sort="total">Total Pts <span class="sort-icon"></span></th>
+              <th>S.N.</th>
+              <th>Rank</th>
+              <th>Team & Manager</th>
+              <th>GW Points</th>
+              <th>Total Points</th>
             </tr>
           </thead>
-          <tbody id="standings-tbody">
-            <!-- Dynamic rows inserted via JavaScript -->
+          <tbody id="current-gw-tbody">
+            <tr><td colspan="5" class="loader">Loading current gameweek live standings...</td></tr>
           </tbody>
         </table>
+      </div>
+      <!-- Pagination Controls for Current GW -->
+      <div class="pagination-container" id="current-gw-pagination" style="display:none;">
+        <span class="pagination-info" id="current-gw-page-info">Showing 1-50</span>
+        <div class="pagination-buttons" id="current-gw-page-btns"></div>
+      </div>
+    </section>
 
-        <!-- Pagination Controls -->
-        <div class="pagination-container" id="pagination-container">
-          <span class="pagination-info" id="pagination-info">Showing 0-0 of 0</span>
-          <div class="pagination-buttons" id="pagination-buttons">
-            <!-- Dynamic page buttons inserted via JavaScript -->
-          </div>
+    <!-- 2. Overall Standings View -->
+    <section id="overall-standings" class="view">
+      <div class="view-header">
+        <h2>Overall League Standings</h2>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>S.N.</th>
+              <th>Rank</th>
+              <th>Change</th>
+              <th>Team & Manager</th>
+              <th>GW Points</th>
+              <th>Total Points</th>
+            </tr>
+          </thead>
+          <tbody id="overall-tbody">
+            <tr><td colspan="6" class="loader">Loading overall standings...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination Controls for Overall Standings -->
+      <div class="pagination-container" id="overall-pagination" style="display:none;">
+        <span class="pagination-info" id="overall-page-info">Showing 1-50</span>
+        <div class="pagination-buttons" id="overall-page-btns"></div>
+      </div>
+    </section>
+
+    <!-- 3. Gameweek History View -->
+    <section id="gw-history" class="view">
+      <div class="view-header">
+        <h2>Gameweek Historical Data</h2>
+        <div class="controls">
+          <label for="gw-select">Select GW:</label>
+          <select id="gw-select"></select>
         </div>
       </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>S.N.</th>
+              <th class="sortable" data-sort="team_name">Team & Manager <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="points">Gross Points <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="transfer_cost">Transfer Cost <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="net_points">Net Points <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="chip">Chip Used <span class="sort-icon"></span></th>
+              <th class="sortable" data-sort="points_on_bench">Bench Points <span class="sort-icon"></span></th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="7" class="loader">Select a gameweek to view history.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- Manager Search View -->
-    <section id="managers" class="view">
+    <!-- 4. Gameweek Winners View -->
+    <section id="gw-winners" class="view">
       <div class="view-header">
-        <h2>Manager Search</h2>
+        <h2>Gameweek Winners Hall of Fame</h2>
       </div>
-      <p>Search feature coming soon...</p>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>S.N.</th>
+              <th>Gameweek</th>
+              <th>Winning Net Points</th>
+              <th>Winner(s)</th>
+            </tr>
+          </thead>
+          <tbody id="winners-tbody">
+            <tr><td colspan="4" class="loader">Loading gameweek winners...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
-    <!-- Stats View -->
-    <section id="stats" class="view">
-      <div class="view-header">
-        <h2>General Stats</h2>
-      </div>
-      <p>Analytics coming soon...</p>
-    </section>
   </main>
 
   <script src="script.js"></script>
