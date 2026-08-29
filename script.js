@@ -14,10 +14,13 @@ const urlParams = new URLSearchParams(window.location.search);
 const LEAGUE_KEY = urlParams.get('league') || DEFAULT_LEAGUE_KEY;
 
 // 2. Resolve numeric league_id from mapping (or use direct input if numeric)
-const LEAGUE_ID = LEAGUE_MAPPINGS[LEAGUE_KEY] || (/\d+/.test(LEAGUE_KEY) ? LEAGUE_KEY : "164381");
+const LEAGUE_ID = LEAGUE_MAPPINGS[LEAGUE_KEY] || (/\d+/.test(LEAGUE_KEY) ? LEAGUE_KEY : LEAGUE_MAPPINGS[DEFAULT_LEAGUE_KEY]);
 
-// Global variable to store active current gameweek number
+// Global state variables
 let currentActiveGameweek = 1;
+let currentHistoryData = []; // Cached array for sorting
+let currentSortColumn = 'net_points'; // Default sort
+let isAscending = false; // Default sort direction (descending for highest points)
 
 // Tab Switching Listener
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -30,7 +33,6 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     document.getElementById(tabId).classList.add('active');
     e.target.classList.add('active');
 
-    // Lazy load history or winners tab when switched
     if (tabId === 'gw-history' && !document.getElementById('history-tbody').dataset.loaded) {
       const selectedGw = document.getElementById('gw-select').value || currentActiveGameweek;
       fetchGameweekHistory(selectedGw);
@@ -46,6 +48,32 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 document.getElementById('gw-select').addEventListener('change', (e) => {
   fetchGameweekHistory(e.target.value);
 });
+
+// Column Sort Click Listener for GW History Table Header
+document.querySelectorAll('#gw-history th.sortable').forEach(header => {
+  header.addEventListener('click', () => {
+    const column = header.getAttribute('data-sort');
+    
+    if (currentSortColumn === column) {
+      isAscending = !isAscending; // Toggle order
+    } else {
+      currentSortColumn = column;
+      isAscending = false; // Default to descending when switching columns
+    }
+
+    renderSortedHistoryTable();
+    updateSortHeaderIcons(header);
+  });
+});
+
+// Update Sorting Arrows on Th Headers
+function updateSortHeaderIcons(activeHeader) {
+  document.querySelectorAll('#gw-history th.sortable .sort-icon').forEach(icon => icon.textContent = '');
+  const activeIcon = activeHeader.querySelector('.sort-icon');
+  if (activeIcon) {
+    activeIcon.textContent = isAscending ? ' ▲' : ' ▼';
+  }
+}
 
 // 1. Fetch Live Data & Standings
 async function fetchLiveData() {
@@ -157,21 +185,61 @@ async function fetchGameweekHistory(gw) {
       return;
     }
 
-    tbody.innerHTML = managers.map((m, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td><strong>${m.team_name || m.entry_name}</strong><br><small style="color:var(--text-muted);">${m.manager_name || m.player_name}</small></td>
-        <td>${m.points ?? m.event_total ?? '-'}</td>
-        <td style="color:${(m.transfer_cost || 0) < 0 ? 'var(--fpl-pink)' : 'inherit'}">${m.transfer_cost ?? 0}</td>
-        <td><strong>${m.net_points ?? m.points ?? m.event_total ?? '-'}</strong></td>
-        <td>${m.chip ? `<span class="badge" style="background:#e90052;color:white;">${m.chip}</span>` : '-'}</td>
-        <td>${m.points_on_bench ?? 0}</td>
-      </tr>
-    `).join('');
+    // Cache historical data for sorting
+    currentHistoryData = managers.map(m => ({
+      team_name: m.team_name || m.entry_name || '',
+      manager_name: m.manager_name || m.player_name || '',
+      points: m.points ?? m.event_total ?? 0,
+      transfer_cost: m.transfer_cost ?? 0,
+      net_points: m.net_points ?? m.points ?? m.event_total ?? 0,
+      chip: m.chip || '',
+      points_on_bench: m.points_on_bench ?? 0
+    }));
+
+    // Reset sort state to net points descending for fresh GW fetch
+    currentSortColumn = 'net_points';
+    isAscending = false;
+
+    const defaultActiveHeader = document.querySelector('#gw-history th[data-sort="net_points"]');
+    if (defaultActiveHeader) {
+      updateSortHeaderIcons(defaultActiveHeader);
+    }
+
+    renderSortedHistoryTable();
   } catch (err) {
     console.error("Error fetching GW history:", err);
     tbody.innerHTML = `<tr><td colspan="7" class="loader">Failed to load gameweek history.</td></tr>`;
   }
+}
+
+// Render GW History Rows based on Active Sorting State
+function renderSortedHistoryTable() {
+  const tbody = document.getElementById('history-tbody');
+
+  currentHistoryData.sort((a, b) => {
+    let valA = a[currentSortColumn];
+    let valB = b[currentSortColumn];
+
+    if (typeof valA === 'string') {
+      valA = valA.toLowerCase();
+      valB = valB.toLowerCase();
+      return isAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+
+    return isAscending ? valA - valB : valB - valA;
+  });
+
+  tbody.innerHTML = currentHistoryData.map((m, index) => `
+    <tr>
+      <td>${index + 1}</td>
+      <td><strong>${m.team_name}</strong><br><small style="color:var(--text-muted);">${m.manager_name}</small></td>
+      <td>${m.points}</td>
+      <td style="color:${m.transfer_cost < 0 ? 'var(--fpl-pink)' : 'inherit'}">${m.transfer_cost}</td>
+      <td><strong>${m.net_points}</strong></td>
+      <td>${m.chip ? `<span class="badge" style="background:#e90052;color:white;">${m.chip}</span>` : '-'}</td>
+      <td>${m.points_on_bench}</td>
+    </tr>
+  `).join('');
 }
 
 // 3. Fetch Gameweek Winners from Worker KV
